@@ -1,0 +1,20 @@
+.DS_Store
+.idea/
+
+# Build output
+bin/
+obj/
+
+# Rider / user files
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+Users.API/UsersDB
+Users.API/UsersDB-shm
+Users.API/UsersDB-wal
