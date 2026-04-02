@@ -6,6 +6,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Users.API", "Users.API\User
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Users.APP", "Users.APP\Users.APP.csproj", "{D297F0BF-7A8A-4562-BB47-389E1BEEA2EF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Movies.APP", "Movies.APP\Movies.APP.csproj", "{C6B3FB0C-7342-4DB0-9932-D193E1CB2A46}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Movies.API", "Movies.API\Movies.API.csproj", "{26518AE8-E532-486D-B77D-E827EE7A1EA3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +28,13 @@ Global
 		{D297F0BF-7A8A-4562-BB47-389E1BEEA2EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D297F0BF-7A8A-4562-BB47-389E1BEEA2EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D297F0BF-7A8A-4562-BB47-389E1BEEA2EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C6B3FB0C-7342-4DB0-9932-D193E1CB2A46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C6B3FB0C-7342-4DB0-9932-D193E1CB2A46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C6B3FB0C-7342-4DB0-9932-D193E1CB2A46}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C6B3FB0C-7342-4DB0-9932-D193E1CB2A46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26518AE8-E532-486D-B77D-E827EE7A1EA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26518AE8-E532-486D-B77D-E827EE7A1EA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26518AE8-E532-486D-B77D-E827EE7A1EA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26518AE8-E532-486D-B77D-E827EE7A1EA3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
