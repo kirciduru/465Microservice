@@ -3,22 +3,43 @@ using CORE.APP.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Movies.APP.Domain;
+using System.ComponentModel.DataAnnotations;
 
 namespace Movies.APP.Features.Genres;
 
-public class GenreUpdaeRequest : Request, IRequest<CommandResponse>
+public class GenreUpdateRequest : Request, IRequest<CommandResponse>
 {
-    
+    [Required, StringLength(100)]
+    public string Name { get; set; }
+    public List<int> MovieIds { get; set; }
 }
 
-public class GenreUpdateHandler : Service<Genre>, IRequestHandler<GenreUpdaeRequest, CommandResponse>
+public class GenreUpdateHandler : Service<Genre>, IRequestHandler<GenreUpdateRequest, CommandResponse>
 {
     public GenreUpdateHandler(DbContext db) : base(db)
     {
     }
 
-    public Task<CommandResponse> Handle(GenreUpdaeRequest request, CancellationToken cancellationToken)
+    protected override IQueryable<Genre> DbSet()
     {
-        throw new NotImplementedException();
+        return base.DbSet().Include(g => g.MovieGenres);
+    }
+
+    public async Task<CommandResponse> Handle(GenreUpdateRequest request, CancellationToken cancellationToken)
+    {
+        if (await DbSet().AnyAsync(g => g.Id != request.Id && g.Name == request.Name.Trim(), cancellationToken))
+            return Error($"Genre with the same name: \"{request.Name.Trim()}\" exists!");
+
+        var entity = await DbSet().SingleOrDefaultAsync(g => g.Id == request.Id, cancellationToken);
+        if (entity is null)
+            return Error("Genre not found!");
+
+        Delete(entity.MovieGenres);
+        entity.MovieGenres = request.MovieIds?.Select(id => new MovieGenre { MovieId = id }).ToList()
+            ?? new List<MovieGenre>();
+        entity.Name = request.Name?.Trim();
+
+        await UpdateAsync(entity, cancellationToken);
+        return Success($"Genre with name {request.Name.Trim()} updated successfully.", entity.Id);
     }
 }

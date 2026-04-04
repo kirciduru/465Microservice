@@ -8,7 +8,6 @@ namespace Movies.APP.Features.Genres;
 
 public class GenreDeleteRequest : Request, IRequest<CommandResponse>
 {
-    
 }
 
 public class GenreDeleteHandler : Service<Genre>, IRequestHandler<GenreDeleteRequest, CommandResponse>
@@ -17,8 +16,19 @@ public class GenreDeleteHandler : Service<Genre>, IRequestHandler<GenreDeleteReq
     {
     }
 
-    public Task<CommandResponse> Handle(GenreDeleteRequest request, CancellationToken cancellationToken)
+    protected override IQueryable<Genre> DbSet()
     {
-        throw new NotImplementedException();
+        return base.DbSet().Include(g => g.MovieGenres);
+    }
+
+    public async Task<CommandResponse> Handle(GenreDeleteRequest request, CancellationToken cancellationToken)
+    {
+        var entity = await DbSet().SingleOrDefaultAsync(g => g.Id == request.Id, cancellationToken);
+        if (entity is null)
+            return Error("Genre not found!");
+
+        Delete(entity.MovieGenres);
+        await DeleteAsync(entity, cancellationToken);
+        return Success("Genre deleted successfully.", entity.Id);
     }
 }
