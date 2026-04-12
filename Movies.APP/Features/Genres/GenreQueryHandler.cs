@@ -13,12 +13,7 @@ public class GenreQueryRequest : Request, IRequest<IQueryable<GenreQueryResponse
 
 public class GenreQueryResponse : Response
 {
-    // entity properties Onurcan made :)
     public string Name { get; set; }
-    public List<int> MovieIds { get; set; }
-
-    // custom properties Onurcan made :)
-    public string MoviesF { get; set; }
     public List<MovieQueryResponse> Movies { get; set; }
 }
 
@@ -42,12 +37,14 @@ public class GenreQueryHandler : Service<Genre>, IRequestHandler<GenreQueryReque
         {
             Id = g.Id,
             Name = g.Name,
-            MovieIds = g.MovieGenres.Select(mg => mg.MovieId).ToList(),
-            MoviesF = string.Join(", ", g.MovieGenres.Select(mg => mg.Movie.Name)),
             Movies = g.MovieGenres.Select(mg => new MovieQueryResponse
             {
                 Id = mg.Movie.Id,
-                Name = mg.Movie.Name
+                Name = mg.Movie.Name,
+                ReleaseDate = mg.Movie.ReleaseDate,
+                TotalRevenue = mg.Movie.TotalRevenue,
+                GenreIds =  mg.Movie.GenreIds,
+                DirectorId = mg.Movie.DirectorId,
             }).ToList()
         });
 

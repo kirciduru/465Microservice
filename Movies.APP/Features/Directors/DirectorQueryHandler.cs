@@ -13,7 +13,17 @@ public class DirectorQueryRequest : Request, IRequest<IQueryable<DirectorQueryRe
 
 public class DirectorQueryResponse : Response
 {
+    public string FirstName { get; set; }
     
+    public string LastName { get; set; }
+    
+    public bool IsRetired { get; set; }
+    
+    public string Movies { get; set; }
+    
+    public int MoviesCount { get; set; }
+    
+    public string FullName { get; set; }
 }
 
 public class DirectorQueryHandler : Service<Director>, IRequestHandler<DirectorQueryRequest, IQueryable<DirectorQueryResponse>>
@@ -21,9 +31,24 @@ public class DirectorQueryHandler : Service<Director>, IRequestHandler<DirectorQ
     public DirectorQueryHandler(DbContext db) : base(db)
     {
     }
+    
+    protected override IQueryable<Director> DbSet()
+    {
+        return base.DbSet().Include(d => d.Movies).OrderByDescending(d => d.Movies.Count).ThenBy(d => d.FirstName).ThenBy(d => d.LastName);
+    }
 
     public Task<IQueryable<DirectorQueryResponse>> Handle(DirectorQueryRequest request, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var query = DbSet().Select(d => new DirectorQueryResponse
+        {
+            Id = d.Id,
+            FirstName = d.FirstName,
+            LastName = d.LastName,
+            IsRetired = d.IsRetired,
+            FullName = d.FirstName + " " + d.LastName,
+            MoviesCount = d.Movies.Count,
+            Movies = string.Join(", ", d.Movies.Select(m => m.Name))
+        });
+        return Task.FromResult(query);
     }
 }

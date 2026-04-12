@@ -7,18 +7,46 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="MediatR" Version="14.1.0" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.24" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.25" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.24">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+        <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.23" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2"/>
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\CORE\CORE.csproj" />
       <ProjectReference Include="..\Movies.APP\Movies.APP.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Templates\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Templates\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Remove="Templates\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Templates\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="Templates\ControllerGenerator\ApiControllerWithContext.cshtml" />
+      <_ContentIncludedByDefault Remove="Templates\ControllerGenerator\MvcControllerWithContext.cshtml" />
+      <_ContentIncludedByDefault Remove="Templates\ViewGenerator\Create.cshtml" />
+      <_ContentIncludedByDefault Remove="Templates\ViewGenerator\Delete.cshtml" />
+      <_ContentIncludedByDefault Remove="Templates\ViewGenerator\Details.cshtml" />
+      <_ContentIncludedByDefault Remove="Templates\ViewGenerator\Edit.cshtml" />
+      <_ContentIncludedByDefault Remove="Templates\ViewGenerator\Empty.cshtml" />
+      <_ContentIncludedByDefault Remove="Templates\ViewGenerator\List.cshtml" />
+      <_ContentIncludedByDefault Remove="Templates\ViewGenerator\_ValidationScriptsPartial.cshtml" />
     </ItemGroup>
 
 </Project>

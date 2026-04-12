@@ -11,7 +11,6 @@ public class GenreUpdateRequest : Request, IRequest<CommandResponse>
 {
     [Required, StringLength(100)]
     public string Name { get; set; }
-    public List<int> MovieIds { get; set; }
 }
 
 public class GenreUpdateHandler : Service<Genre>, IRequestHandler<GenreUpdateRequest, CommandResponse>
@@ -33,10 +32,6 @@ public class GenreUpdateHandler : Service<Genre>, IRequestHandler<GenreUpdateReq
         var entity = await DbSet().SingleOrDefaultAsync(g => g.Id == request.Id, cancellationToken);
         if (entity is null)
             return Error("Genre not found!");
-
-        Delete(entity.MovieGenres);
-        entity.MovieGenres = request.MovieIds?.Select(id => new MovieGenre { MovieId = id }).ToList()
-            ?? new List<MovieGenre>();
         entity.Name = request.Name?.Trim();
 
         await UpdateAsync(entity, cancellationToken);

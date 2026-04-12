@@ -11,7 +11,6 @@ public class GenreCreateRequest : Request, IRequest<CommandResponse>
 {
     [Required, StringLength(100)]
     public string Name { get; set; }
-    public List<int> MovieIds { get; set; }
 }
 
 public class GenreCreateHandler : Service<Genre>, IRequestHandler<GenreCreateRequest, CommandResponse>
@@ -28,8 +27,6 @@ public class GenreCreateHandler : Service<Genre>, IRequestHandler<GenreCreateReq
         var entity = new Genre
         {
             Name = request.Name?.Trim(),
-            MovieGenres = request.MovieIds?.Select(id => new MovieGenre { MovieId = id }).ToList()
-                ?? new List<MovieGenre>()
         };
 
         await CreateAsync(entity, cancellationToken);

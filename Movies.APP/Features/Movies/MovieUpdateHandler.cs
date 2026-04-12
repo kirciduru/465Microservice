@@ -15,7 +15,7 @@ public class MovieUpdateRequest : Request, IRequest<CommandResponse>
 
     public DateTime? ReleaseDate { get; set; }
 
-    public decimal TotalRevenue { get; set; }
+    public double TotalRevenue { get; set; }
 
     public int DirectorId { get; set; }
 

@@ -16,9 +16,20 @@ public class DirectorDeleteHandler : Service<Director>, IRequestHandler<Director
     public DirectorDeleteHandler(DbContext db) : base(db)
     {
     }
-
-    public Task<CommandResponse> Handle(DirectorDeleteRequest request, CancellationToken cancellationToken)
+    
+    protected override IQueryable<Director> DbSet()
     {
-        throw new NotImplementedException();
+        return base.DbSet().Include(d => d.Movies);
+    }
+
+    public async Task<CommandResponse> Handle(DirectorDeleteRequest request, CancellationToken cancellationToken)
+    {
+        var entity = await DbSet().SingleOrDefaultAsync(d => d.Id == request.Id, cancellationToken);
+        if (entity is null)
+            return Error("Director not found!");
+        if (entity.Movies.Any())
+            return Error("Director can't be deleted because it has relational games!");
+        await DeleteAsync(entity, cancellationToken);
+        return Success("Director deleted successfully.", entity.Id);
     }
 }
