@@ -28,7 +28,7 @@ public class DirectorDeleteHandler : Service<Director>, IRequestHandler<Director
         if (entity is null)
             return Error("Director not found!");
         if (entity.Movies.Any())
-            return Error("Director can't be deleted because it has relational games!");
+            return Error("Director can't be deleted because it has relational movies!");
         await DeleteAsync(entity, cancellationToken);
         return Success("Director deleted successfully.", entity.Id);
     }
