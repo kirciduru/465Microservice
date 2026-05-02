@@ -46,5 +46,9 @@ namespace Users.APP.Domain
             get => UserRoles.Select(userRoleEntity => userRoleEntity.RoleId).ToList();
             set => UserRoles = value.Select(roleIdValue => new UserRole() { RoleId = roleIdValue }).ToList();
         }
+        
+        public string RefreshToken { get; set; }
+
+        public DateTime? RefreshTokenExpiration { get; set; }
     }
 }
