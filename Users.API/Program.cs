@@ -10,6 +10,13 @@ var builder = WebApplication.CreateBuilder(args);
 
 // builder.AddServiceDefaults();
 
+// Add CORS – allows the standalone HTML frontend to call this API
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+});
+
 builder.Services.AddSingleton<ITokenAuthService, TokenAuthService>();
 builder.Configuration["SecurityKey"] = "users_microservices_security_key_2026=";
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -101,6 +108,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowAll");
 
 app.UseAuthentication();
 
