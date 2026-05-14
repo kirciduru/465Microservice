@@ -191,6 +191,10 @@ label{font-size:0.8rem;color:#888;margin-bottom:4px;display:block}
         <label>Bearer Token</label>
         <textarea id="token-full" readonly onclick="this.select()"></textarea>
         <button class="btn btn-primary btn-sm" onclick="copyToken()">Copy Token</button>
+        <label>Refresh Token</label>
+        <textarea id="refresh-token-full" readonly onclick="this.select()"></textarea>
+        <button class="btn btn-primary btn-sm" onclick="copyRefreshToken()">Copy Refresh Token</button>
+        <button class="btn btn-primary btn-sm" onclick="refreshToken()">Refresh Token</button>
       </div>
     </div>
   </div>
@@ -242,6 +246,7 @@ const CURRENT_ORIGIN = window.location.origin.startsWith('http') ? window.locati
 const MOVIES = orderedBases(['7156','5259'].includes(window.location.port) ? CURRENT_ORIGIN : '', ['https://localhost:7156','http://localhost:5259']);
 const USERS  = orderedBases(['7219','5265'].includes(window.location.port) ? CURRENT_ORIGIN : '', ['https://localhost:7219','http://localhost:5265']);
 let jwt = '';
+let refreshJwt = '';
 
 function orderedBases(primary, fallbacks) {
   return [primary, ...fallbacks].filter((url, index, urls) => url && urls.indexOf(url) === index);
@@ -275,6 +280,18 @@ async function copyToken() {
   } catch(e) {
     document.getElementById('token-full').select();
     toast('Token selected. Press Cmd+C.','error');
+  }
+}
+
+async function copyRefreshToken() {
+  const token = document.getElementById('refresh-token-full').value;
+  if(!token) return;
+  try {
+    await navigator.clipboard.writeText(token);
+    toast('Refresh token copied!');
+  } catch(e) {
+    document.getElementById('refresh-token-full').select();
+    toast('Refresh token selected. Press Cmd+C.','error');
   }
 }
 
@@ -422,14 +439,35 @@ async function login() {
     const r = await api(USERS,'/api/Token','POST',{userName:document.getElementById('l-user').value,password:document.getElementById('l-pass').value});
     if(r && r.token) {
       jwt = r.token;
+      refreshJwt = r.refreshToken || '';
       document.getElementById('token-display').style.display='block';
       document.getElementById('token-full').value = jwt;
+      document.getElementById('refresh-token-full').value = refreshJwt;
       document.getElementById('authStatus').textContent = '✅ Logged in';
       document.getElementById('authStatus').style.color='#4ade80';
       toast('Login successful!');
       loadUsers();
     } else { toast('Login failed!','error'); }
   } catch(e){toast(e.message || 'Start Users.API, then try again.','error');}
+}
+
+async function refreshToken() {
+  if(!jwt || !refreshJwt) {
+    toast('Login first to get tokens.','error');
+    return;
+  }
+  try {
+    const r = await api(USERS,'/api/RefreshToken','POST',{token:jwt,refreshToken:refreshJwt});
+    if(r && r.token && r.refreshToken) {
+      jwt = r.token;
+      refreshJwt = r.refreshToken;
+      document.getElementById('token-full').value = jwt;
+      document.getElementById('refresh-token-full').value = refreshJwt;
+      toast('Token refreshed!');
+    } else {
+      toast('Refresh failed!','error');
+    }
+  } catch(e){toast(e.message || 'Refresh failed. Login again.','error');}
 }
 
 async function loadUsers() {
