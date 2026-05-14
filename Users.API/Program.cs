@@ -2,6 +2,7 @@ using System.Text;
 using CORE.APP.Services.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Users.APP.Domain;
@@ -97,6 +98,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+var frontendPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "frontend"));
 
 // app.MapDefaultEndpoints();
 
@@ -110,6 +112,20 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
+
+if (Directory.Exists(frontendPath))
+{
+    var frontendFiles = new PhysicalFileProvider(frontendPath);
+
+    app.UseDefaultFiles(new DefaultFilesOptions
+    {
+        FileProvider = frontendFiles
+    });
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = frontendFiles
+    });
+}
 
 app.UseAuthentication();
 

@@ -1,4 +1,5 @@
 #nullable disable
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MediatR;
@@ -10,6 +11,7 @@ namespace Movies.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [AllowAnonymous]
     public class MoviesController : ControllerBase
     {
         private readonly ILogger<MoviesController> _logger;

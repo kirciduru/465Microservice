@@ -25,6 +25,8 @@ header h1{font-size:1.5rem;background:linear-gradient(135deg,#6c63ff,#48cae4);-w
 .card-body{padding:20px}
 input,select{width:100%;background:#0f0f1a;border:1px solid #2a2a4a;border-radius:8px;padding:9px 12px;color:#e0e0e0;margin-bottom:10px;font-size:0.875rem}
 input:focus,select:focus{outline:none;border-color:#6c63ff}
+textarea{width:100%;min-height:150px;resize:vertical;background:#0f0f1a;border:1px solid #2a2a4a;border-radius:8px;padding:10px 12px;color:#e0e0e0;margin-bottom:10px;font:0.78rem ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;line-height:1.45;word-break:break-all}
+textarea:focus{outline:none;border-color:#6c63ff}
 .btn{padding:9px 18px;border:none;border-radius:8px;cursor:pointer;font-size:0.875rem;font-weight:600;transition:all .2s}
 .btn-primary{background:linear-gradient(135deg,#6c63ff,#48cae4);color:#fff}
 .btn-danger{background:#dc2626;color:#fff}
@@ -179,14 +181,16 @@ label{font-size:0.8rem;color:#888;margin-bottom:4px;display:block}
 
 <!-- USERS -->
 <div id="users-tab" class="tab-content">
-  <div class="card" style="max-width:420px;margin-bottom:24px">
+  <div class="card" style="max-width:760px;margin-bottom:24px">
     <div class="card-header"><h2>🔐 Login (Get JWT)</h2></div>
     <div class="card-body">
       <label>Username</label><input id="l-user" placeholder="Username">
       <label>Password</label><input id="l-pass" type="password" placeholder="Password">
       <button class="btn btn-primary" onclick="login()" style="width:100%">Login</button>
       <div id="token-display" style="display:none;margin-top:12px">
-        <div class="token-info">Token: <span id="token-short"></span></div>
+        <label>Bearer Token</label>
+        <textarea id="token-full" readonly onclick="this.select()"></textarea>
+        <button class="btn btn-primary btn-sm" onclick="copyToken()">Copy Token</button>
       </div>
     </div>
   </div>
@@ -234,9 +238,14 @@ label{font-size:0.8rem;color:#888;margin-bottom:4px;display:block}
 <div id="toast" class="toast"></div>
 
 <script>
-const MOVIES = 'https://localhost:7156';
-const USERS  = 'https://localhost:7219';
+const CURRENT_ORIGIN = window.location.origin.startsWith('http') ? window.location.origin : '';
+const MOVIES = orderedBases(['7156','5259'].includes(window.location.port) ? CURRENT_ORIGIN : '', ['https://localhost:7156','http://localhost:5259']);
+const USERS  = orderedBases(['7219','5265'].includes(window.location.port) ? CURRENT_ORIGIN : '', ['https://localhost:7219','http://localhost:5265']);
 let jwt = '';
+
+function orderedBases(primary, fallbacks) {
+  return [primary, ...fallbacks].filter((url, index, urls) => url && urls.indexOf(url) === index);
+}
 
 function showTab(id) {
   document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
@@ -257,12 +266,38 @@ function toast(msg, type='success') {
   setTimeout(()=>t.classList.remove('show'), 3000);
 }
 
-async function api(url, method='GET', body=null, auth=false) {
+async function copyToken() {
+  const token = document.getElementById('token-full').value;
+  if(!token) return;
+  try {
+    await navigator.clipboard.writeText(token);
+    toast('Token copied!');
+  } catch(e) {
+    document.getElementById('token-full').select();
+    toast('Token selected. Press Cmd+C.','error');
+  }
+}
+
+async function api(baseUrls, path, method='GET', body=null, auth=false) {
   const headers = {'Content-Type':'application/json'};
-  if(auth && jwt) headers['Authorization'] = 'Bearer '+jwt;
-  const res = await fetch(url, {method, headers, body: body ? JSON.stringify(body) : null});
-  if(res.status===204) return [];
-  return res.json();
+  if(auth && jwt) headers['Authorization'] = jwt.startsWith('Bearer ') ? jwt : 'Bearer '+jwt;
+  let lastError;
+
+  for (const baseUrl of baseUrls) {
+    try {
+      const res = await fetch(baseUrl + path, {method, headers, body: body ? JSON.stringify(body) : null});
+      if(res.status===204) return [];
+      if(res.status===401) throw new Error('Login required.');
+      if(res.status===403) throw new Error('Admin role required.');
+      if(!res.ok) throw new Error(`API error ${res.status}`);
+      return res.json();
+    } catch (error) {
+      lastError = error;
+      if(error.message === 'Login required.' || error.message === 'Admin role required.') throw error;
+    }
+  }
+
+  throw lastError || new Error('Could not reach API.');
 }
 
 // ── MOVIES ─────────────────────────────────────────
@@ -270,7 +305,7 @@ async function loadMovies() {
   const el = document.getElementById('movies-table');
   el.innerHTML = '<div class="empty"><span class="loader"></span>Loading...</div>';
   try {
-    const data = await api(MOVIES+'/api/Movies');
+    const data = await api(MOVIES,'/api/Movies');
     if(!data||!data.length){el.innerHTML='<div class="empty">No movies found.</div>';return;}
     el.innerHTML = '<table><thead><tr><th>ID</th><th>Name</th><th>Director</th><th>Genres</th><th>Revenue</th><th>Release</th><th></th></tr></thead><tbody>'+
       data.map(m=>`<tr><td>${m.id}</td><td><b>${m.name}</b></td><td>${m.directorName||'-'}</td><td>${m.genresF||'-'}</td><td>${m.totalRevenueF||m.totalRevenue}</td><td>${m.releaseDateF||''}</td><td><button class="btn btn-danger btn-sm" onclick="deleteMovie(${m.id})">🗑</button></td></tr>`).join('')+
@@ -281,7 +316,7 @@ async function loadMovies() {
 async function createMovie() {
   const genres = document.getElementById('m-genres').value.split(',').map(v=>parseInt(v.trim())).filter(v=>!isNaN(v));
   try {
-    const r = await api(MOVIES+'/api/Movies','POST',{name:document.getElementById('m-name').value,releaseDate:document.getElementById('m-date').value||null,totalRevenue:parseFloat(document.getElementById('m-rev').value)||0,directorId:parseInt(document.getElementById('m-dir').value)||0,genreIds:genres});
+    const r = await api(MOVIES,'/api/Movies','POST',{name:document.getElementById('m-name').value,releaseDate:document.getElementById('m-date').value||null,totalRevenue:parseFloat(document.getElementById('m-rev').value)||0,directorId:parseInt(document.getElementById('m-dir').value)||0,genreIds:genres});
     r.isSuccessful ? toast('Movie created!') : toast(r.message,'error');
     if(r.isSuccessful) loadMovies();
   } catch(e){toast('Error: '+e,'error');}
@@ -290,7 +325,7 @@ async function createMovie() {
 async function updateMovie() {
   const genres = document.getElementById('mu-genres').value.split(',').map(v=>parseInt(v.trim())).filter(v=>!isNaN(v));
   try {
-    const r = await api(MOVIES+'/api/Movies','PUT',{id:parseInt(document.getElementById('mu-id').value),name:document.getElementById('mu-name').value,releaseDate:document.getElementById('mu-date').value||null,totalRevenue:parseFloat(document.getElementById('mu-rev').value)||0,directorId:parseInt(document.getElementById('mu-dir').value)||0,genreIds:genres});
+    const r = await api(MOVIES,'/api/Movies','PUT',{id:parseInt(document.getElementById('mu-id').value),name:document.getElementById('mu-name').value,releaseDate:document.getElementById('mu-date').value||null,totalRevenue:parseFloat(document.getElementById('mu-rev').value)||0,directorId:parseInt(document.getElementById('mu-dir').value)||0,genreIds:genres});
     r.isSuccessful ? toast('Movie updated!') : toast(r.message,'error');
     if(r.isSuccessful) loadMovies();
   } catch(e){toast('Error: '+e,'error');}
@@ -299,7 +334,7 @@ async function updateMovie() {
 async function deleteMovie(id) {
   if(!confirm('Delete movie #'+id+'?')) return;
   try {
-    const r = await api(MOVIES+'/api/Movies/'+id,'DELETE');
+    const r = await api(MOVIES,'/api/Movies/'+id,'DELETE');
     r.isSuccessful ? toast('Deleted!') : toast(r.message,'error');
     if(r.isSuccessful) loadMovies();
   } catch(e){toast('Error','error');}
@@ -310,37 +345,37 @@ async function loadDirectors() {
   const el = document.getElementById('directors-table');
   el.innerHTML = '<div class="empty"><span class="loader"></span>Loading...</div>';
   try {
-    const data = await api(MOVIES+'/api/Directors');
+    const data = await api(MOVIES,'/api/Directors','GET',null,true);
     if(!data||!data.length){el.innerHTML='<div class="empty">No directors found.</div>';return;}
     el.innerHTML='<table><thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Movies</th><th></th></tr></thead><tbody>'+
       data.map(d=>`<tr><td>${d.id}</td><td><b>${d.fullName||d.firstName+' '+d.lastName}</b></td><td><span class="badge ${d.isRetired?'badge-red':'badge-green'}">${d.isRetired?'Retired':'Active'}</span></td><td>${d.moviesCount} | ${d.movies||'-'}</td><td><button class="btn btn-danger btn-sm" onclick="deleteDirector(${d.id})">🗑</button></td></tr>`).join('')+
     '</tbody></table>';
-  } catch(e){el.innerHTML='<div class="empty">Could not reach Movies API.</div>';}
+  } catch(e){el.innerHTML=`<div class="empty">${e.message || 'Could not reach Movies API.'}</div>`;}
 }
 
 async function createDirector() {
   try {
-    const r = await api(MOVIES+'/api/Directors','POST',{firstName:document.getElementById('d-first').value,lastName:document.getElementById('d-last').value,isRetired:document.getElementById('d-ret').value==='true'});
+    const r = await api(MOVIES,'/api/Directors','POST',{firstName:document.getElementById('d-first').value,lastName:document.getElementById('d-last').value,isRetired:document.getElementById('d-ret').value==='true'},true);
     r.isSuccessful ? toast('Director created!') : toast(r.message,'error');
     if(r.isSuccessful) loadDirectors();
-  } catch(e){toast('Error','error');}
+  } catch(e){toast(e.message || 'Error','error');}
 }
 
 async function updateDirector() {
   try {
-    const r = await api(MOVIES+'/api/Directors','PUT',{id:parseInt(document.getElementById('du-id').value),firstName:document.getElementById('du-first').value,lastName:document.getElementById('du-last').value,isRetired:document.getElementById('du-ret').value==='true'});
+    const r = await api(MOVIES,'/api/Directors','PUT',{id:parseInt(document.getElementById('du-id').value),firstName:document.getElementById('du-first').value,lastName:document.getElementById('du-last').value,isRetired:document.getElementById('du-ret').value==='true'},true);
     r.isSuccessful ? toast('Director updated!') : toast(r.message,'error');
     if(r.isSuccessful) loadDirectors();
-  } catch(e){toast('Error','error');}
+  } catch(e){toast(e.message || 'Error','error');}
 }
 
 async function deleteDirector(id) {
   if(!confirm('Delete director #'+id+'?')) return;
   try {
-    const r = await api(MOVIES+'/api/Directors/'+id,'DELETE');
+    const r = await api(MOVIES,'/api/Directors/'+id,'DELETE',null,true);
     r.isSuccessful ? toast('Deleted!') : toast(r.message,'error');
     if(r.isSuccessful) loadDirectors();
-  } catch(e){toast('Error','error');}
+  } catch(e){toast(e.message || 'Error','error');}
 }
 
 // ── GENRES ──────────────────────────────────────────
@@ -348,53 +383,53 @@ async function loadGenres() {
   const el = document.getElementById('genres-table');
   el.innerHTML = '<div class="empty"><span class="loader"></span>Loading...</div>';
   try {
-    const data = await api(MOVIES+'/api/Genres');
+    const data = await api(MOVIES,'/api/Genres','GET',null,true);
     if(!data||!data.length){el.innerHTML='<div class="empty">No genres found.</div>';return;}
     el.innerHTML='<table><thead><tr><th>ID</th><th>Name</th><th>Movies</th><th></th></tr></thead><tbody>'+
       data.map(g=>`<tr><td>${g.id}</td><td><b>${g.name}</b></td><td>${(g.movies||[]).length}</td><td><button class="btn btn-danger btn-sm" onclick="deleteGenre(${g.id})">🗑</button></td></tr>`).join('')+
     '</tbody></table>';
-  } catch(e){el.innerHTML='<div class="empty">Could not reach Movies API.</div>';}
+  } catch(e){el.innerHTML=`<div class="empty">${e.message || 'Could not reach Movies API.'}</div>`;}
 }
 
 async function createGenre() {
   try {
-    const r = await api(MOVIES+'/api/Genres','POST',{name:document.getElementById('g-name').value});
+    const r = await api(MOVIES,'/api/Genres','POST',{name:document.getElementById('g-name').value},true);
     r.isSuccessful ? toast('Genre created!') : toast(r.message,'error');
     if(r.isSuccessful) loadGenres();
-  } catch(e){toast('Error','error');}
+  } catch(e){toast(e.message || 'Error','error');}
 }
 
 async function updateGenre() {
   try {
-    const r = await api(MOVIES+'/api/Genres','PUT',{id:parseInt(document.getElementById('gu-id').value),name:document.getElementById('gu-name').value});
+    const r = await api(MOVIES,'/api/Genres','PUT',{id:parseInt(document.getElementById('gu-id').value),name:document.getElementById('gu-name').value},true);
     r.isSuccessful ? toast('Genre updated!') : toast(r.message,'error');
     if(r.isSuccessful) loadGenres();
-  } catch(e){toast('Error','error');}
+  } catch(e){toast(e.message || 'Error','error');}
 }
 
 async function deleteGenre(id) {
   if(!confirm('Delete genre #'+id+'?')) return;
   try {
-    const r = await api(MOVIES+'/api/Genres/'+id,'DELETE');
+    const r = await api(MOVIES,'/api/Genres/'+id,'DELETE',null,true);
     r.isSuccessful ? toast('Deleted!') : toast(r.message,'error');
     if(r.isSuccessful) loadGenres();
-  } catch(e){toast('Error','error');}
+  } catch(e){toast(e.message || 'Error','error');}
 }
 
 // ── LOGIN & USERS ────────────────────────────────────
 async function login() {
   try {
-    const r = await api(USERS+'/api/Token','POST',{userName:document.getElementById('l-user').value,password:document.getElementById('l-pass').value});
+    const r = await api(USERS,'/api/Token','POST',{userName:document.getElementById('l-user').value,password:document.getElementById('l-pass').value});
     if(r && r.token) {
       jwt = r.token;
       document.getElementById('token-display').style.display='block';
-      document.getElementById('token-short').textContent = jwt.substring(0,40)+'...';
+      document.getElementById('token-full').value = jwt;
       document.getElementById('authStatus').textContent = '✅ Logged in';
       document.getElementById('authStatus').style.color='#4ade80';
       toast('Login successful!');
       loadUsers();
     } else { toast('Login failed!','error'); }
-  } catch(e){toast('Could not reach Users API','error');}
+  } catch(e){toast(e.message || 'Start Users.API, then try again.','error');}
 }
 
 async function loadUsers() {
@@ -402,7 +437,7 @@ async function loadUsers() {
   const el = document.getElementById('users-table');
   el.innerHTML='<div class="empty"><span class="loader"></span>Loading...</div>';
   try {
-    const data = await api(USERS+'/api/Users','GET',null,true);
+    const data = await api(USERS,'/api/Users','GET',null,true);
     if(!data||!data.length){el.innerHTML='<div class="empty">No users found.</div>';return;}
     el.innerHTML='<table><thead><tr><th>ID</th><th>Username</th><th>Full Name</th><th>Group</th><th>Roles</th><th>Status</th><th>Registered</th></tr></thead><tbody>'+
       data.map(u=>`<tr><td>${u.id}</td><td><b>${u.userName}</b></td><td>${u.fullName||'-'}</td><td>${u.groupF||'-'}</td><td>${(u.rolesF||[]).join(', ')||'-'}</td><td><span class="badge ${u.isActive?'badge-green':'badge-red'}">${u.isActiveF}</span></td><td>${u.registrationDateF||''}</td></tr>`).join('')+
@@ -415,7 +450,7 @@ async function loadGroups() {
   const el = document.getElementById('groups-table');
   el.innerHTML='<div class="empty"><span class="loader"></span>Loading...</div>';
   try {
-    const data = await api(USERS+'/api/Groups');
+    const data = await api(USERS,'/api/Groups');
     if(!data||!data.length){el.innerHTML='<div class="empty">No groups found.</div>';return;}
     el.innerHTML='<table><thead><tr><th>ID</th><th>Title</th><th></th></tr></thead><tbody>'+
       data.map(g=>`<tr><td>${g.id}</td><td><b>${g.title}</b></td><td><button class="btn btn-danger btn-sm" onclick="deleteGroup(${g.id})">🗑</button></td></tr>`).join('')+
@@ -425,7 +460,7 @@ async function loadGroups() {
 
 async function createGroup() {
   try {
-    const r = await api(USERS+'/api/Groups','POST',{title:document.getElementById('gr-title').value});
+    const r = await api(USERS,'/api/Groups','POST',{title:document.getElementById('gr-title').value});
     r.isSuccessful ? toast('Group created!') : toast(r.message,'error');
     if(r.isSuccessful) loadGroups();
   } catch(e){toast('Error','error');}
@@ -433,7 +468,7 @@ async function createGroup() {
 
 async function updateGroup() {
   try {
-    const r = await api(USERS+'/api/Groups','PUT',{id:parseInt(document.getElementById('gru-id').value),title:document.getElementById('gru-title').value});
+    const r = await api(USERS,'/api/Groups','PUT',{id:parseInt(document.getElementById('gru-id').value),title:document.getElementById('gru-title').value});
     r.isSuccessful ? toast('Group updated!') : toast(r.message,'error');
     if(r.isSuccessful) loadGroups();
   } catch(e){toast('Error','error');}
@@ -442,7 +477,7 @@ async function updateGroup() {
 async function deleteGroup(id) {
   if(!confirm('Delete group #'+id+'?')) return;
   try {
-    const r = await api(USERS+'/api/Groups/'+id,'DELETE');
+    const r = await api(USERS,'/api/Groups/'+id,'DELETE');
     if(r===null||r===undefined||r.isSuccessful) toast('Deleted!');
     else toast(r.message,'error');
     loadGroups();
