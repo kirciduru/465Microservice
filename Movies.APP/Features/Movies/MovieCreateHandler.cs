@@ -32,13 +32,28 @@ public class MovieCreateHandler : Service<Movie>, IRequestHandler<MovieCreateReq
         if (await DbSet().AnyAsync(m => m.Name == request.Name.Trim(), cancellationToken))
             return Error($"Movie with the same name: \"{request.Name.Trim()}\" exists!");
 
+        if (!await DbSet<Director>().AnyAsync(d => d.Id == request.DirectorId, cancellationToken))
+            return Error($"Director with ID {request.DirectorId} not found!");
+
+        var genreIds = request.GenreIds?.Distinct().ToList() ?? new List<int>();
+        if (genreIds.Any())
+        {
+            var existingGenreIds = await DbSet<Genre>()
+                .Where(g => genreIds.Contains(g.Id))
+                .Select(g => g.Id)
+                .ToListAsync(cancellationToken);
+            var missingGenreIds = genreIds.Except(existingGenreIds).ToList();
+            if (missingGenreIds.Any())
+                return Error($"Genre ID(s) not found: {string.Join(", ", missingGenreIds)}");
+        }
+
         var entity = new Movie
         {
             Name = request.Name?.Trim(),
             ReleaseDate = request.ReleaseDate,
             TotalRevenue = request.TotalRevenue,
             DirectorId = request.DirectorId,
-            GenreIds = request.GenreIds
+            GenreIds = genreIds
         };
 
         await CreateAsync(entity, cancellationToken);

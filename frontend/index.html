@@ -306,7 +306,14 @@ async function api(baseUrls, path, method='GET', body=null, auth=false) {
       if(res.status===204) return [];
       if(res.status===401) throw new Error('Login required.');
       if(res.status===403) throw new Error('Admin role required.');
-      if(!res.ok) throw new Error(`API error ${res.status}`);
+      if(!res.ok) {
+        let message = `API error ${res.status}`;
+        try {
+          const errorData = await res.json();
+          message = errorData.message || errorData.title || message;
+        } catch(e) {}
+        throw new Error(message);
+      }
       return res.json();
     } catch (error) {
       lastError = error;

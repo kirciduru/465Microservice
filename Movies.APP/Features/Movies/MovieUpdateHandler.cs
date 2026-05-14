@@ -37,11 +37,26 @@ public class MovieUpdateHandler : Service<Movie>, IRequestHandler<MovieUpdateReq
         if (entity is null)
             return Error("Movie not found!");
 
+        if (!await DbSet<Director>().AnyAsync(d => d.Id == request.DirectorId, cancellationToken))
+            return Error($"Director with ID {request.DirectorId} not found!");
+
+        var genreIds = request.GenreIds?.Distinct().ToList() ?? new List<int>();
+        if (genreIds.Any())
+        {
+            var existingGenreIds = await DbSet<Genre>()
+                .Where(g => genreIds.Contains(g.Id))
+                .Select(g => g.Id)
+                .ToListAsync(cancellationToken);
+            var missingGenreIds = genreIds.Except(existingGenreIds).ToList();
+            if (missingGenreIds.Any())
+                return Error($"Genre ID(s) not found: {string.Join(", ", missingGenreIds)}");
+        }
+
         entity.Name = request.Name?.Trim();
         entity.ReleaseDate = request.ReleaseDate;
         entity.TotalRevenue = request.TotalRevenue;
         entity.DirectorId = request.DirectorId;
-        entity.GenreIds = request.GenreIds;
+        entity.GenreIds = genreIds;
 
         await UpdateAsync(entity, cancellationToken);
         return Success($"Movie with name \"{entity.Name}\" updated successfully.", entity.Id);
