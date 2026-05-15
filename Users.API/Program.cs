@@ -123,7 +123,13 @@ if (Directory.Exists(frontendPath))
     });
     app.UseStaticFiles(new StaticFileOptions
     {
-        FileProvider = frontendFiles
+        FileProvider = frontendFiles,
+        OnPrepareResponse = ctx =>
+        {
+            ctx.Context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+            ctx.Context.Response.Headers.Pragma = "no-cache";
+            ctx.Context.Response.Headers.Expires = "0";
+        }
     });
 }
 

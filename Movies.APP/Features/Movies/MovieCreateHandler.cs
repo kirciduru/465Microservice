@@ -32,6 +32,9 @@ public class MovieCreateHandler : Service<Movie>, IRequestHandler<MovieCreateReq
         if (await DbSet().AnyAsync(m => m.Name == request.Name.Trim(), cancellationToken))
             return Error($"Movie with the same name: \"{request.Name.Trim()}\" exists!");
 
+        if (request.ReleaseDate.HasValue && request.ReleaseDate.Value.Date > DateTime.Today)
+            return Error("Release date cannot be in the future!");
+
         if (!await DbSet<Director>().AnyAsync(d => d.Id == request.DirectorId, cancellationToken))
             return Error($"Director with ID {request.DirectorId} not found!");
 

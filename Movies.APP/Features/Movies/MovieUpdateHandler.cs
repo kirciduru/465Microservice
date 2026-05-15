@@ -37,6 +37,9 @@ public class MovieUpdateHandler : Service<Movie>, IRequestHandler<MovieUpdateReq
         if (entity is null)
             return Error("Movie not found!");
 
+        if (request.ReleaseDate.HasValue && request.ReleaseDate.Value.Date > DateTime.Today)
+            return Error("Release date cannot be in the future!");
+
         if (!await DbSet<Director>().AnyAsync(d => d.Id == request.DirectorId, cancellationToken))
             return Error($"Director with ID {request.DirectorId} not found!");
 

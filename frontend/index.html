@@ -82,7 +82,7 @@ label{font-size:0.8rem;color:#888;margin-bottom:4px;display:block}
       <div class="card-header"><h2>➕ Add Movie</h2></div>
       <div class="card-body">
         <label>Name</label><input id="m-name" placeholder="Movie name">
-        <label>Release Date</label><input id="m-date" type="date">
+        <label>Release Date</label><input id="m-date" type="text" placeholder="dd.mm.yyyy">
         <label>Total Revenue ($)</label><input id="m-rev" type="number" placeholder="0">
         <label>Director ID</label><input id="m-dir" type="number" placeholder="Director ID">
         <label>Genre IDs (comma separated)</label><input id="m-genres" placeholder="1,2,3">
@@ -94,7 +94,7 @@ label{font-size:0.8rem;color:#888;margin-bottom:4px;display:block}
       <div class="card-body">
         <label>Movie ID</label><input id="mu-id" type="number" placeholder="ID">
         <label>Name</label><input id="mu-name" placeholder="New name">
-        <label>Release Date</label><input id="mu-date" type="date">
+        <label>Release Date</label><input id="mu-date" type="text" placeholder="dd.mm.yyyy">
         <label>Total Revenue ($)</label><input id="mu-rev" type="number">
         <label>Director ID</label><input id="mu-dir" type="number">
         <label>Genre IDs (comma separated)</label><input id="mu-genres" placeholder="1,2,3">
@@ -245,6 +245,7 @@ label{font-size:0.8rem;color:#888;margin-bottom:4px;display:block}
 const CURRENT_ORIGIN = window.location.origin.startsWith('http') ? window.location.origin : '';
 const MOVIES = orderedBases(['7156','5259'].includes(window.location.port) ? CURRENT_ORIGIN : '', ['https://localhost:7156','http://localhost:5259']);
 const USERS  = orderedBases(['7219','5265'].includes(window.location.port) ? CURRENT_ORIGIN : '', ['https://localhost:7219','http://localhost:5265']);
+const FRONTEND_VERSION = 'validation-2026-05-15';
 let jwt = '';
 let refreshJwt = '';
 
@@ -271,6 +272,11 @@ function toast(msg, type='success') {
   setTimeout(()=>t.classList.remove('show'), 3000);
 }
 
+function setMaxReleaseDate() {
+  document.getElementById('m-date').title = 'Use dd.mm.yyyy or yyyy-mm-dd. Future dates are not allowed.';
+  document.getElementById('mu-date').title = 'Use dd.mm.yyyy or yyyy-mm-dd. Future dates are not allowed.';
+}
+
 function parseGenreIds(input) {
   if(!input.trim()) return [];
   const values = input.split(',').map(v => v.trim()).filter(Boolean);
@@ -279,6 +285,72 @@ function parseGenreIds(input) {
     throw new Error('Genre IDs must be numbers separated by commas.');
   }
   return values.map(v => parseInt(v));
+}
+
+function parseRequiredId(input, label) {
+  const value = input.trim();
+  if(!/^\d+$/.test(value)) {
+    throw new Error(`${label} must be a valid number.`);
+  }
+  const id = parseInt(value);
+  if(id <= 0) {
+    throw new Error(`${label} must be greater than 0.`);
+  }
+  return id;
+}
+
+function validateReleaseDate(input) {
+  const value = input.value.trim();
+  if(!value) return null;
+
+  let day, month, year;
+  const dotted = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  const iso = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+
+  if(dotted) {
+    day = parseInt(dotted[1]);
+    month = parseInt(dotted[2]);
+    year = parseInt(dotted[3]);
+  } else if(iso) {
+    year = parseInt(iso[1]);
+    month = parseInt(iso[2]);
+    day = parseInt(iso[3]);
+  } else {
+    throw new Error('Enter release date as dd.mm.yyyy.');
+  }
+
+  const selected = new Date(year, month - 1, day);
+  if(selected.getFullYear() !== year || selected.getMonth() !== month - 1 || selected.getDate() !== day) {
+    throw new Error('Enter a valid release date.');
+  }
+
+  const current = new Date();
+  current.setHours(0, 0, 0, 0);
+  selected.setHours(0, 0, 0, 0);
+  if(selected > current) {
+    throw new Error('Release date cannot be in the future.');
+  }
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+async function validateMovieReferences(directorId, genreIds) {
+  const directors = await api(MOVIES,'/api/Directors','GET',null,true);
+  if(!directors.some(d => d.id === directorId)) {
+    throw new Error(`Director with ID ${directorId} not found.`);
+  }
+
+  if(genreIds.length) {
+    const genres = await api(MOVIES,'/api/Genres','GET',null,true);
+    const existingGenreIds = genres.map(g => g.id);
+    const missingGenreIds = genreIds.filter(id => !existingGenreIds.includes(id));
+    if(missingGenreIds.length === 1) {
+      throw new Error(`Genre with ID ${missingGenreIds[0]} not found.`);
+    }
+    if(missingGenreIds.length > 1) {
+      throw new Error(`Genres with IDs ${missingGenreIds.join(', ')} not found.`);
+    }
+  }
 }
 
 async function copyToken() {
@@ -335,6 +407,9 @@ async function api(baseUrls, path, method='GET', body=null, auth=false) {
       }
       return res.json();
     } catch (error) {
+      if(error instanceof TypeError) {
+        error = new Error('Could not reach API. Make sure the service is running and try again.');
+      }
       lastError = error;
       if(error.status || error.message === 'Login required.' || error.message === 'Admin role required.') throw error;
     }
@@ -359,7 +434,10 @@ async function loadMovies() {
 async function createMovie() {
   try {
     const genres = parseGenreIds(document.getElementById('m-genres').value);
-    const r = await api(MOVIES,'/api/Movies','POST',{name:document.getElementById('m-name').value,releaseDate:document.getElementById('m-date').value||null,totalRevenue:parseFloat(document.getElementById('m-rev').value)||0,directorId:parseInt(document.getElementById('m-dir').value)||0,genreIds:genres});
+    const directorId = parseRequiredId(document.getElementById('m-dir').value, 'Director ID');
+    const releaseDate = validateReleaseDate(document.getElementById('m-date'));
+    await validateMovieReferences(directorId, genres);
+    const r = await api(MOVIES,'/api/Movies','POST',{name:document.getElementById('m-name').value,releaseDate,totalRevenue:parseFloat(document.getElementById('m-rev').value)||0,directorId,genreIds:genres});
     r.isSuccessful ? toast('Movie created!') : toast(r.message,'error');
     if(r.isSuccessful) loadMovies();
   } catch(e){toast(e.message || 'Could not create movie.','error');}
@@ -368,7 +446,10 @@ async function createMovie() {
 async function updateMovie() {
   try {
     const genres = parseGenreIds(document.getElementById('mu-genres').value);
-    const r = await api(MOVIES,'/api/Movies','PUT',{id:parseInt(document.getElementById('mu-id').value),name:document.getElementById('mu-name').value,releaseDate:document.getElementById('mu-date').value||null,totalRevenue:parseFloat(document.getElementById('mu-rev').value)||0,directorId:parseInt(document.getElementById('mu-dir').value)||0,genreIds:genres});
+    const directorId = parseRequiredId(document.getElementById('mu-dir').value, 'Director ID');
+    const releaseDate = validateReleaseDate(document.getElementById('mu-date'));
+    await validateMovieReferences(directorId, genres);
+    const r = await api(MOVIES,'/api/Movies','PUT',{id:parseInt(document.getElementById('mu-id').value),name:document.getElementById('mu-name').value,releaseDate,totalRevenue:parseFloat(document.getElementById('mu-rev').value)||0,directorId,genreIds:genres});
     r.isSuccessful ? toast('Movie updated!') : toast(r.message,'error');
     if(r.isSuccessful) loadMovies();
   } catch(e){toast(e.message || 'Could not update movie.','error');}
@@ -549,6 +630,7 @@ async function deleteGroup(id) {
 }
 
 // Initial load
+setMaxReleaseDate();
 loadMovies();
 loadGroups();
 </script>
