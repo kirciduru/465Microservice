@@ -18,7 +18,7 @@ public class MovieCreateRequest : Request, IRequest<CommandResponse>
 
     public int DirectorId { get; set; }
 
-    public List<int> GenreIds { get; set; }
+    public List<int> GenreIds { get; set; } = new List<int>();
 }
 
 public class MovieCreateHandler : Service<Movie>, IRequestHandler<MovieCreateRequest, CommandResponse>

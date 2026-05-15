@@ -65,7 +65,7 @@ public class MovieQueryHandler : Service<Movie>, IRequestHandler<MovieQueryReque
             ReleaseDate = m.ReleaseDate,
             TotalRevenue = m.TotalRevenue,
             DirectorId = m.DirectorId,
-            GenreIds = m.MovieGenres.Select(mg => mg.GenreId).ToList(),
+            GenreIds = m.GenreIds,
             DirectorName = m.Director.FirstName + " " + m.Director.LastName,
             ReleaseDateF = m.ReleaseDate.HasValue ? m.ReleaseDate.Value.ToString("MM/dd/yyyy HH:mm:ss") : string.Empty,
             TotalRevenueF = m.TotalRevenue.ToString("C2"),

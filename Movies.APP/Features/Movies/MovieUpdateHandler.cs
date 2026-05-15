@@ -19,7 +19,7 @@ public class MovieUpdateRequest : Request, IRequest<CommandResponse>
 
     public int DirectorId { get; set; }
 
-    public List<int> GenreIds { get; set; }
+    public List<int> GenreIds { get; set; } = new List<int>();
 }
 
 public class MovieUpdateHandler : Service<Movie>, IRequestHandler<MovieUpdateRequest, CommandResponse>
