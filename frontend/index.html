@@ -271,6 +271,16 @@ function toast(msg, type='success') {
   setTimeout(()=>t.classList.remove('show'), 3000);
 }
 
+function parseGenreIds(input) {
+  if(!input.trim()) return [];
+  const values = input.split(',').map(v => v.trim()).filter(Boolean);
+  const invalidValues = values.filter(v => !/^\d+$/.test(v));
+  if(invalidValues.length) {
+    throw new Error('Genre IDs must be numbers separated by commas.');
+  }
+  return values.map(v => parseInt(v));
+}
+
 async function copyToken() {
   const token = document.getElementById('token-full').value;
   if(!token) return;
@@ -307,17 +317,26 @@ async function api(baseUrls, path, method='GET', body=null, auth=false) {
       if(res.status===401) throw new Error('Login required.');
       if(res.status===403) throw new Error('Admin role required.');
       if(!res.ok) {
-        let message = `API error ${res.status}`;
+        let message = res.status === 400 ? 'Please check the entered values.' : `API error ${res.status}`;
         try {
-          const errorData = await res.json();
-          message = errorData.message || errorData.title || message;
+          const text = await res.text();
+          if(text) {
+            try {
+              const errorData = JSON.parse(text);
+              message = errorData.message || errorData.title || text;
+            } catch(e) {
+              message = text;
+            }
+          }
         } catch(e) {}
-        throw new Error(message);
+        const error = new Error(message);
+        error.status = res.status;
+        throw error;
       }
       return res.json();
     } catch (error) {
       lastError = error;
-      if(error.message === 'Login required.' || error.message === 'Admin role required.') throw error;
+      if(error.status || error.message === 'Login required.' || error.message === 'Admin role required.') throw error;
     }
   }
 
@@ -338,21 +357,21 @@ async function loadMovies() {
 }
 
 async function createMovie() {
-  const genres = document.getElementById('m-genres').value.split(',').map(v=>parseInt(v.trim())).filter(v=>!isNaN(v));
   try {
+    const genres = parseGenreIds(document.getElementById('m-genres').value);
     const r = await api(MOVIES,'/api/Movies','POST',{name:document.getElementById('m-name').value,releaseDate:document.getElementById('m-date').value||null,totalRevenue:parseFloat(document.getElementById('m-rev').value)||0,directorId:parseInt(document.getElementById('m-dir').value)||0,genreIds:genres});
     r.isSuccessful ? toast('Movie created!') : toast(r.message,'error');
     if(r.isSuccessful) loadMovies();
-  } catch(e){toast('Error: '+e,'error');}
+  } catch(e){toast(e.message || 'Could not create movie.','error');}
 }
 
 async function updateMovie() {
-  const genres = document.getElementById('mu-genres').value.split(',').map(v=>parseInt(v.trim())).filter(v=>!isNaN(v));
   try {
+    const genres = parseGenreIds(document.getElementById('mu-genres').value);
     const r = await api(MOVIES,'/api/Movies','PUT',{id:parseInt(document.getElementById('mu-id').value),name:document.getElementById('mu-name').value,releaseDate:document.getElementById('mu-date').value||null,totalRevenue:parseFloat(document.getElementById('mu-rev').value)||0,directorId:parseInt(document.getElementById('mu-dir').value)||0,genreIds:genres});
     r.isSuccessful ? toast('Movie updated!') : toast(r.message,'error');
     if(r.isSuccessful) loadMovies();
-  } catch(e){toast('Error: '+e,'error');}
+  } catch(e){toast(e.message || 'Could not update movie.','error');}
 }
 
 async function deleteMovie(id) {
@@ -361,7 +380,7 @@ async function deleteMovie(id) {
     const r = await api(MOVIES,'/api/Movies/'+id,'DELETE');
     r.isSuccessful ? toast('Deleted!') : toast(r.message,'error');
     if(r.isSuccessful) loadMovies();
-  } catch(e){toast('Error','error');}
+  } catch(e){toast(e.message || 'Could not delete movie.','error');}
 }
 
 // ── DIRECTORS ───────────────────────────────────────

@@ -49,7 +49,9 @@ public class MovieUpdateHandler : Service<Movie>, IRequestHandler<MovieUpdateReq
                 .ToListAsync(cancellationToken);
             var missingGenreIds = genreIds.Except(existingGenreIds).ToList();
             if (missingGenreIds.Any())
-                return Error($"Genre ID(s) not found: {string.Join(", ", missingGenreIds)}");
+                return Error(missingGenreIds.Count == 1
+                    ? $"Genre with ID {missingGenreIds[0]} not found!"
+                    : $"Genres with IDs {string.Join(", ", missingGenreIds)} not found!");
         }
 
         entity.Name = request.Name?.Trim();
